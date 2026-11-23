@@ -7,7 +7,9 @@ name = "ecommerce-lakehouse-azure"
 version = "0.1.0"
 description = "Multi-tenant ecommerce KPI lakehouse on Azure Databricks: Delta, Unity Catalog, dbt, Terraform."
 requires-python = ">=3.11"
-dependencies = []
+dependencies = [
+    "databricks-sdk>=0.30",
+]
 
 [project.optional-dependencies]
 dev = [
