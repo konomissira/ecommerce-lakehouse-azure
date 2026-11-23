@@ -51,6 +51,20 @@ make check     # lint and tests, the same as CI
 make data      # generate the mock Shopify data
 ```
 
+### Databricks workspace
+
+Requires the [Databricks CLI](https://docs.databricks.com/dev-tools/cli/install.html),
+signed in once with `databricks auth login --host <your-workspace-url>`.
+
+```bash
+make workspace-plan   # check the CSVs against the contract; changes nothing
+make workspace        # create catalog, schemas and volume; upload the CSVs
+```
+
+This creates `ecommerce.bronze`, `ecommerce.silver`, `ecommerce.gold` and the volume
+`ecommerce.bronze.landing`. Set `LAKEHOUSE_CATALOG=workspace` to use the catalog that
+Databricks Free Edition creates for you instead.
+
 ## Landing-zone contract
 
 Raw CSV files land as `<entity>/<file>.csv`, for `customers`, `orders`, `products` and
