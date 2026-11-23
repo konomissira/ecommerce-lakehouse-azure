@@ -1,4 +1,4 @@
-.PHONY: setup lint format test check data workspace-plan workspace
+.PHONY: setup lint format test check data workspace-plan workspace bronze-plan bronze
 
 setup:  ## Install the package in editable mode with dev tools, and the git hooks
 	python -m pip install -e ".[dev]"
@@ -25,3 +25,9 @@ workspace-plan:  ## Check the CSVs against the landing contract and print the pl
 
 workspace:  ## Create catalog, schemas and landing volume, then upload the checked CSVs
 	python -m lakehouse.setup_workspace
+
+bronze-plan:  ## Print the Bronze SQL (CREATE TABLE + COPY INTO); changes nothing
+	python -m lakehouse.bronze --plan
+
+bronze:  ## Load the landing CSVs into Bronze Delta tables and reconcile counts per tenant
+	python -m lakehouse.bronze

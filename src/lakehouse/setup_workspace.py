@@ -151,8 +151,8 @@ def run_sql(
     poll_seconds: float = 2.0,
     timeout_seconds: float = 300.0,
     sleep: Callable[[float], None] = time.sleep,
-) -> None:
-    """Run one statement on a SQL warehouse and wait for it, raising on failure.
+) -> Any:
+    """Run one statement on a SQL warehouse, wait for it, and return the response.
 
     A stopped serverless warehouse starts on the first statement, which can take a
     little while, hence the polling.
@@ -172,6 +172,20 @@ def run_sql(
         error = getattr(response.status, "error", None)
         message = getattr(error, "message", None) or _state(response)
         raise SetupError(f"{message}\n  while running: {statement}")
+    return response
+
+
+def fetch_rows(response: Any) -> list[dict[str, str | None]]:
+    """Turn a finished statement's inline result into a list of {column: value} dicts.
+
+    The statement execution API returns every value as a string (or None for NULL).
+    """
+    manifest = getattr(response, "manifest", None)
+    result = getattr(response, "result", None)
+    if manifest is None or result is None:
+        return []
+    names = [column.name for column in manifest.schema.columns]
+    return [dict(zip(names, row, strict=True)) for row in (result.data_array or [])]
 
 
 def pick_warehouse(client: Any, warehouse_id: str | None = None) -> str:

@@ -27,29 +27,25 @@ from dataclasses import dataclass
 from pathlib import PurePosixPath
 from urllib.parse import urlparse
 
-# The columns each Bronze entity must have, exactly as the generator writes them.
+# The columns of each entity, in the order the generator writes them. Bronze tables
+# use this order too.
+COLUMN_ORDER: dict[str, tuple[str, ...]] = {
+    "customers": (
+        "customer_id", "tenant_id", "first_name", "last_name", "email", "city", "created_at",
+    ),
+    "orders": (
+        "order_id", "tenant_id", "customer_id", "product_id", "order_date",
+        "quantity", "gross_sales", "discount", "net_sales", "utm_source",
+    ),
+    "products": ("product_id", "tenant_id", "sku", "product_name", "category", "price"),
+    "refunds": (
+        "refund_id", "tenant_id", "order_id", "refund_date", "refund_amount", "reason",
+    ),
+}  # fmt: skip
+
+# The columns each entity must have, in any order.
 EXPECTED_COLUMNS: dict[str, frozenset[str]] = {
-    "customers": frozenset(
-        {"customer_id", "tenant_id", "first_name", "last_name", "email", "city", "created_at"}
-    ),
-    "orders": frozenset(
-        {
-            "order_id",
-            "tenant_id",
-            "customer_id",
-            "product_id",
-            "order_date",
-            "quantity",
-            "gross_sales",
-            "discount",
-            "net_sales",
-            "utm_source",
-        }
-    ),
-    "products": frozenset({"product_id", "tenant_id", "sku", "product_name", "category", "price"}),
-    "refunds": frozenset(
-        {"refund_id", "tenant_id", "order_id", "refund_date", "refund_amount", "reason"}
-    ),
+    entity: frozenset(columns) for entity, columns in COLUMN_ORDER.items()
 }
 
 ENTITIES = frozenset(EXPECTED_COLUMNS)

@@ -31,9 +31,9 @@ then the governed AI layer that ties this project to the rest of the portfolio.
 |---|---|
 | `feature/01-repo-bootstrap` | Layout, tooling, CI, landing-path contract |
 | `feature/02-databricks-setup` | Databricks Free Edition workspace: catalog, Bronze/Silver/Gold schemas, raw data in a volume |
-| `feature/03-bronze-ingestion` | Auto Loader into Bronze Delta tables, enforcing the landing contract |
+| `feature/03-bronze-ingestion` | `COPY INTO` Bronze Delta tables (all strings + load metadata), reconciled per tenant |
 | `feature/04-dbt-databricks` | Silver and Gold models ported to `dbt-databricks`, with tests |
-| `feature/05-orchestration` | Databricks Asset Bundle: one job runs ingest then dbt |
+| `feature/05-orchestration` | Databricks Asset Bundle: one job runs Auto Loader ingest, then dbt |
 | `feature/06-azure-infra` | Terraform: resource group, ADLS Gen2, Azure Databricks workspace, budget alert |
 | `feature/07-unity-catalog-azure` | Storage credential and external location on your own ADLS |
 | `feature/08-governance` | Grants, per-tenant row filters, lineage |
@@ -64,6 +64,17 @@ make workspace        # create catalog, schemas and volume; upload the CSVs
 This creates `ecommerce.bronze`, `ecommerce.silver`, `ecommerce.gold` and the volume
 `ecommerce.bronze.landing`. Set `LAKEHOUSE_CATALOG=workspace` to use the catalog that
 Databricks Free Edition creates for you instead.
+
+### Bronze
+
+```bash
+make bronze-plan      # print the CREATE TABLE and COPY INTO statements
+make bronze           # load Bronze, then check row counts per tenant against the files
+```
+
+Bronze keeps every source column as a `STRING`, plus `_source_file`,
+`_source_modified_at` and `_ingested_at`. `COPY INTO` skips files it has already
+loaded, so the load is safe to re-run.
 
 ## Landing-zone contract
 
