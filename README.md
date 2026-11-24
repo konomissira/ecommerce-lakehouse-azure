@@ -80,7 +80,7 @@ loaded, so the load is safe to re-run.
 
 The dbt project lives in `transform/`. Copy `.env.example` to `.env` and fill in
 `DBT_DATABRICKS_HOST` and `DBT_DATABRICKS_HTTP_PATH` (the SQL warehouse's
-Connection details tab). There is no access token to store: `make dbt-build`
+Connection details tab). The local dbt profile is `transform/profiles/profiles.yml`. There is no access token to store: `make dbt-build`
 fetches a short-lived one from your Databricks CLI login.
 
 ```bash
@@ -98,6 +98,25 @@ Silver applies types with `try_cast` and lists any value that failed in
 `_cast_errors`, which a test requires to be empty, so nothing is lost silently. Two
 reconciliation tests check that Silver holds every Bronze key once, and that Gold's
 revenue adds up to Silver's, per tenant, to the penny.
+
+### The pipeline job (Databricks Asset Bundle)
+
+`databricks.yml` defines one job, `lakehouse-pipeline`, on serverless compute:
+
+1. `bronze_autoloader`: Auto Loader picks up new landing files, checks every batch's
+   tenants against the contract, and appends to Bronze (`src/lakehouse/autoloader.py`).
+2. `dbt_build`: only if ingestion succeeded, `dbt build` builds and tests Silver and Gold.
+
+```bash
+make bundle-validate   # check databricks.yml against the workspace
+make bundle-deploy     # upload the code and create or update the job
+make bundle-run        # run it now
+```
+
+Set `BUNDLE_VAR_warehouse_id` in `.env`. The daily 06:00 schedule (London time) is
+created paused. Auto Loader starts with a cutover: it skips files that `COPY INTO`
+already loaded, so nothing is loaded twice. On an empty workspace, run the job once
+with `include_existing_files=true`.
 
 ## Landing-zone contract
 

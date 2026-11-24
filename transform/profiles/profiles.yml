@@ -1,5 +1,10 @@
-# dbt connection to Databricks. This file holds NO secrets, so it is committed:
-# every value comes from an environment variable.
+# dbt connection to Databricks, for runs from your Mac (`make dbt-build`).
+# This file holds NO secrets, so it is committed: every value comes from an
+# environment variable.
+#
+# It sits in its own folder on purpose. The Databricks job (databricks.yml) lets
+# Databricks generate a profile for dbt; a profiles.yml in the project folder
+# itself could be picked up there instead.
 #
 #   DBT_DATABRICKS_HOST       e.g. dbc-xxxxxxxx-xxxx.cloud.databricks.com (no https://)
 #   DBT_DATABRICKS_HTTP_PATH  e.g. /sql/1.0/warehouses/<warehouse id>

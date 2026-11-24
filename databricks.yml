@@ -1,0 +1,88 @@
+# Databricks Asset Bundle: the lakehouse pipeline as code.
+#
+#   make bundle-validate   check this file against your workspace
+#   make bundle-deploy     upload src/ and transform/, create or update the job
+#   make bundle-run        run the job now and stream its progress
+#
+# The job runs on serverless compute, so there is no cluster to size, start or
+# forget to stop. The schedule is created paused: turn it on in the Jobs page, or
+# set pause_status to UNPAUSED, when you want it to run every morning.
+
+bundle:
+  name: ecommerce-lakehouse
+
+variables:
+  warehouse_id:
+    description: "SQL warehouse that runs dbt. Set BUNDLE_VAR_warehouse_id in .env."
+  catalog:
+    description: "Unity Catalog catalog of the lakehouse."
+    default: ecommerce
+
+# Files gitignored are never uploaded. Patterns here follow .gitignore rules:
+# a pattern without a leading slash matches at any depth, so `tests/**` would
+# also skip transform/tests (dbt's reconciliation tests). Keep excludes narrow.
+sync:
+  exclude:
+    - /data_generator/**
+    - "*.csv"
+
+targets:
+  dev:
+    mode: development
+    default: true
+
+resources:
+  jobs:
+    lakehouse_pipeline:
+      name: lakehouse-pipeline
+      description: "Auto Loader into Bronze, then dbt builds and tests Silver and Gold."
+      max_concurrent_runs: 1
+
+      schedule:
+        quartz_cron_expression: "0 0 6 * * ?"  # 06:00 every day
+        timezone_id: Europe/London
+        pause_status: PAUSED
+
+      parameters:
+        - name: include_existing_files
+          default: "false"  # cutover from COPY INTO: skip files Bronze already holds
+
+      environments:
+        - environment_key: ingest
+          spec:
+            environment_version: "2"
+        - environment_key: dbt
+          spec:
+            environment_version: "2"
+            dependencies:
+              - "dbt-databricks>=1.10,<2"
+              - "dbt-core>=1.10,<2"
+
+      tasks:
+        - task_key: bronze_autoloader
+          description: "New landing files into Bronze; every batch tenant-checked first."
+          environment_key: ingest
+          spark_python_task:
+            python_file: ./src/lakehouse/autoloader.py
+            parameters:
+              - "--catalog"
+              - "${var.catalog}"
+              - "--src"
+              - "${workspace.file_path}/src"
+              - "--include-existing-files"
+              - "{{job.parameters.include_existing_files}}"
+
+        - task_key: dbt_build
+          description: "Build Silver and Gold and run every dbt test, in dependency order."
+          depends_on:
+            - task_key: bronze_autoloader
+          environment_key: dbt
+          dbt_task:
+            source: WORKSPACE
+            project_directory: ${workspace.file_path}/transform
+            commands:
+              - "dbt deps"
+              - "dbt build"
+            warehouse_id: ${var.warehouse_id}
+            catalog: ${var.catalog}
+            schema: silver

@@ -8,8 +8,10 @@ repos:
       - id: check-added-large-files
         args: ["--maxkb=1000"]
       - id: detect-private-key
+  # Same version as pyproject.toml: two ruff versions format differently,
+  # and CI would reject what the hook just formatted.
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.6.9
+    rev: v0.16.9
     hooks:
       - id: ruff
         args: ["--fix"]
