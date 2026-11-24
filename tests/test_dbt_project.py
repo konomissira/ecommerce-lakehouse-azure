@@ -13,8 +13,14 @@ import yaml
 
 DBT = Path(__file__).resolve().parents[1] / "transform"
 MODELS = DBT / "models"
-SQL_FILES = sorted(DBT.glob("**/*.sql"))
-YAML_FILES = sorted(p for p in DBT.glob("**/*.yml") if "dbt_packages" not in p.parts)
+# Only the project's own files: dbt writes target/ and dbt_packages/ when it runs,
+# and those hold compiled copies and other people's code.
+OWN_FOLDERS = ("models", "macros", "tests", "profiles")
+SQL_FILES = sorted(p for d in OWN_FOLDERS for p in (DBT / d).glob("**/*.sql"))
+YAML_FILES = sorted(
+    [p for d in OWN_FOLDERS for p in (DBT / d).glob("**/*.yml") if p.is_file()]
+    + [DBT / "dbt_project.yml", DBT / "packages.yml"]
+)
 
 # BigQuery-only syntax that would fail, or silently mean something else, on Databricks.
 BIGQUERY_ONLY = {
@@ -108,10 +114,15 @@ def test_every_tenant_column_is_checked_against_the_known_tenants():
 
 
 def test_the_profile_holds_no_secrets():
-    output = yaml_of(DBT / "profiles.yml")["ecommerce_lakehouse"]["outputs"]["dev"]
+    output = yaml_of(DBT / "profiles" / "profiles.yml")["ecommerce_lakehouse"]["outputs"]["dev"]
     for key in ("host", "http_path", "token"):
         assert "env_var(" in output[key], f"{key} must come from an environment variable"
     assert output["catalog"] == "ecommerce"
+
+
+def test_no_profile_sits_in_the_project_folder_itself():
+    # The Databricks job generates its own profile; one here could be used instead.
+    assert not (DBT / "profiles.yml").exists()
 
 
 def test_models_land_in_the_medallion_schemas_exactly():

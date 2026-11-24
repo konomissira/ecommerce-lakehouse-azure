@@ -1,4 +1,4 @@
-.PHONY: setup lint format test check data workspace-plan workspace bronze-plan bronze dbt-deps dbt-parse dbt-build
+.PHONY: setup lint format test check data workspace-plan workspace bronze-plan bronze dbt-deps dbt-parse dbt-build bundle-validate bundle-deploy bundle-run
 
 # Local settings (not secrets) such as DBT_DATABRICKS_HOST; see .env.example.
 -include .env
@@ -46,7 +46,16 @@ dbt-deps:  ## Install dbt packages (dbt_utils)
 
 dbt-parse:  ## Check the dbt project compiles; needs no Databricks connection (CI runs this)
 	cd transform && DBT_DATABRICKS_HOST=ci DBT_DATABRICKS_HTTP_PATH=ci DBT_DATABRICKS_TOKEN=ci \
-		dbt parse --profiles-dir .
+		dbt parse --profiles-dir profiles
 
 dbt-build:  ## Build Silver and Gold on Databricks and run every dbt test, in dependency order
-	cd transform && DBT_DATABRICKS_TOKEN="$(DBT_TOKEN)" dbt build --profiles-dir .
+	cd transform && DBT_DATABRICKS_TOKEN="$(DBT_TOKEN)" dbt build --profiles-dir profiles
+
+bundle-validate:  ## Check databricks.yml against your workspace
+	databricks bundle validate
+
+bundle-deploy:  ## Upload src/ and transform/ and create or update the job
+	databricks bundle deploy
+
+bundle-run:  ## Run the pipeline job now and follow its progress
+	databricks bundle run lakehouse_pipeline
