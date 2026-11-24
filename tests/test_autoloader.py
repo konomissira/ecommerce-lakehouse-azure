@@ -25,9 +25,9 @@ def test_a_fresh_workspace_can_load_existing_files():
 def test_reader_options_are_as_strict_as_copy_into():
     options = reader_options("false")
     assert options["cloudFiles.format"] == "csv"
-    assert (
-        options["cloudFiles.schemaEvolutionMode"] == "none"
-    ), "the schema is given, never inferred"
+    assert options["cloudFiles.schemaEvolutionMode"] == "none", (
+        "the schema is given, never inferred"
+    )
     assert options["mode"] == "FAILFAST"
     assert options["header"] == "true"
     assert options["escape"] == '"'

@@ -80,3 +80,15 @@ def test_the_upload_never_skips_dbt_files():
 def _suffixes(path: str) -> list[str]:
     parts = path.split("/")
     return ["/".join(parts[i:]) for i in range(1, len(parts))]
+
+
+def test_ruff_is_the_same_version_in_pre_commit_and_ci():
+    # Two ruff versions format code differently: the hook and CI must agree.
+    import re
+
+    pinned = re.search(r'"ruff==([\d.]+)"', (ROOT / "pyproject.toml").read_text())
+    hook = re.search(
+        r"ruff-pre-commit\s+rev: v([\d.]+)", (ROOT / ".pre-commit-config.yaml").read_text()
+    )
+    assert pinned and hook, "pin ruff exactly in both files"
+    assert pinned.group(1) == hook.group(1)
