@@ -16,6 +16,9 @@ dev = [
     "pytest>=8",
     "ruff>=0.6",
     "pre-commit>=3.7",
+    "pyyaml>=6",
+    "dbt-databricks>=1.10,<2",
+    "dbt-core>=1.10,<2",
 ]
 
 [tool.setuptools.packages.find]

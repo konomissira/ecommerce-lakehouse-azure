@@ -1,0 +1,14 @@
+version: 2
+
+# Bronze: the Delta tables loaded by `make bronze` (feature/03).
+# Every source column is a STRING; Silver applies the types.
+sources:
+  - name: bronze
+    database: ecommerce
+    schema: bronze
+    description: "Raw Shopify data exactly as landed, plus load metadata."
+    tables:
+      - name: customers
+      - name: orders
+      - name: products
+      - name: refunds

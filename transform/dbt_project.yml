@@ -1,0 +1,31 @@
+name: 'ecommerce_lakehouse'
+version: '1.0.0'
+config-version: 2
+
+profile: 'ecommerce_lakehouse'
+
+model-paths: ["models"]
+test-paths: ["tests"]
+macro-paths: ["macros"]
+target-path: "target"
+clean-targets: ["target", "dbt_packages"]
+
+# Ported from the BigQuery project (ecommerce-kpi-platform/data-pipeline/dbt_ecommerce).
+# What changed:
+#   - Bronze is no longer dbt seeds: it's the Delta tables loaded by COPY INTO
+#     (feature/03), declared as a source in models/silver/_sources.yml.
+#   - staging -> silver and marts -> gold, written to ecommerce.silver and
+#     ecommerce.gold exactly (see macros/generate_schema_name.sql).
+#
+# Materialization strategy (unchanged from the original):
+#   - silver: views. Cheap, always fresh, no storage cost.
+#   - gold:   Delta tables. Dashboards and governed questions read these, so they
+#             are pre-computed. Switch to incremental once volume justifies it.
+models:
+  ecommerce_lakehouse:
+    silver:
+      +materialized: view
+      +schema: silver
+    gold:
+      +materialized: table
+      +schema: gold

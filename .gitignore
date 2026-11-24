@@ -29,6 +29,8 @@ crash.log
 target/
 dbt_packages/
 logs/
+.user.yml
+package-lock.yml
 
 # Databricks
 .databricks/
