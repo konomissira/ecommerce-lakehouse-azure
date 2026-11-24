@@ -1,0 +1,136 @@
+version: 2
+
+# Ported from the BigQuery project's staging/schema.yml, plus two kinds of test
+# that Bronze-as-strings needs:
+#   - size(_cast_errors) = 0: no raw value was lost when the types were applied;
+#   - net_sales = gross_sales - discount_amount, to the penny.
+#
+# Safety rail for multi-tenant data: accepted_values on tenant_id fails loudly
+# if any row contains an unexpected tenant.
+
+models:
+    - name: stg_shopify__orders
+      description: "Silver: one row per order, typed and deduplicated."
+      tests:
+          - dbt_utils.expression_is_true:
+                arguments:
+                    expression: "size(_cast_errors) = 0"
+          - dbt_utils.expression_is_true:
+                arguments:
+                    expression: "abs(gross_sales - discount_amount - net_sales) <= 0.01"
+      columns:
+          - name: order_id
+            description: "Unique order identifier."
+            tests: [unique, not_null]
+          - name: tenant_id
+            description: "The brand this order belongs to. CRITICAL for row-level isolation."
+            tests:
+                - not_null
+                - accepted_values:
+                      arguments:
+                          values: ["brand_a", "brand_b"]
+          - name: customer_id
+            tests:
+                - not_null
+                - relationships:
+                      arguments:
+                          to: ref('stg_shopify__customers')
+                          field: customer_id
+          - name: product_id
+            tests:
+                - not_null
+                - relationships:
+                      arguments:
+                          to: ref('stg_shopify__products')
+                          field: product_id
+          - name: order_date
+            tests: [not_null]
+          - name: quantity
+            tests:
+                - not_null
+                - dbt_utils.accepted_range:
+                      arguments:
+                          min_value: 1
+          - name: gross_sales
+            tests:
+                - not_null
+                - dbt_utils.accepted_range:
+                      arguments:
+                          min_value: 0
+          - name: net_sales
+            tests:
+                - not_null
+                - dbt_utils.accepted_range:
+                      arguments:
+                          min_value: 0
+
+    - name: stg_shopify__customers
+      description: "Silver: one row per customer per tenant."
+      tests:
+          - dbt_utils.expression_is_true:
+                arguments:
+                    expression: "size(_cast_errors) = 0"
+      columns:
+          - name: customer_id
+            tests: [unique, not_null]
+          - name: tenant_id
+            tests:
+                - not_null
+                - accepted_values:
+                      arguments:
+                          values: ["brand_a", "brand_b"]
+          - name: email
+            tests: [not_null]
+
+    - name: stg_shopify__products
+      description: "Silver: one row per product per tenant."
+      tests:
+          - dbt_utils.expression_is_true:
+                arguments:
+                    expression: "size(_cast_errors) = 0"
+      columns:
+          - name: product_id
+            tests: [unique, not_null]
+          - name: tenant_id
+            tests:
+                - not_null
+                - accepted_values:
+                      arguments:
+                          values: ["brand_a", "brand_b"]
+          - name: sku
+            tests: [not_null]
+          - name: price
+            tests:
+                - not_null
+                - dbt_utils.accepted_range:
+                      arguments:
+                          min_value: 0
+
+    - name: stg_shopify__refunds
+      description: "Silver: one row per refund event."
+      tests:
+          - dbt_utils.expression_is_true:
+                arguments:
+                    expression: "size(_cast_errors) = 0"
+      columns:
+          - name: refund_id
+            tests: [unique, not_null]
+          - name: tenant_id
+            tests:
+                - not_null
+                - accepted_values:
+                      arguments:
+                          values: ["brand_a", "brand_b"]
+          - name: order_id
+            tests:
+                - not_null
+                - relationships:
+                      arguments:
+                          to: ref('stg_shopify__orders')
+                          field: order_id
+          - name: refund_amount
+            tests:
+                - not_null
+                - dbt_utils.accepted_range:
+                      arguments:
+                          min_value: 0

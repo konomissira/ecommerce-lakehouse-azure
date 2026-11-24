@@ -1,0 +1,19 @@
+# dbt connection to Databricks. This file holds NO secrets, so it is committed:
+# every value comes from an environment variable.
+#
+#   DBT_DATABRICKS_HOST       e.g. dbc-xxxxxxxx-xxxx.cloud.databricks.com (no https://)
+#   DBT_DATABRICKS_HTTP_PATH  e.g. /sql/1.0/warehouses/<warehouse id>
+#   DBT_DATABRICKS_TOKEN      a short-lived OAuth token; `make dbt-build` fetches it
+#                             from your Databricks CLI login, so no long-lived token
+#                             is ever created or stored.
+ecommerce_lakehouse:
+  target: dev
+  outputs:
+    dev:
+      type: databricks
+      host: "{{ env_var('DBT_DATABRICKS_HOST') }}"
+      http_path: "{{ env_var('DBT_DATABRICKS_HTTP_PATH') }}"
+      token: "{{ env_var('DBT_DATABRICKS_TOKEN') }}"
+      catalog: ecommerce
+      schema: silver
+      threads: 4
