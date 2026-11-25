@@ -39,3 +39,6 @@ package-lock.yml
 .vscode/
 .idea/
 .DS_Store
+
+# Terraform plan files can contain secrets
+tfplan

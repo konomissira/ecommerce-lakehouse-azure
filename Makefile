@@ -1,4 +1,4 @@
-.PHONY: setup lint format test check data workspace-plan workspace bronze-plan bronze dbt-deps dbt-parse dbt-build bundle-validate bundle-deploy bundle-run
+.PHONY: setup lint format test check data workspace-plan workspace bronze-plan bronze dbt-deps dbt-parse dbt-build bundle-validate bundle-deploy bundle-run tf-init tf-plan tf-apply tf-destroy tf-output
 
 # Local settings (not secrets) such as DBT_DATABRICKS_HOST; see .env.example.
 -include .env
@@ -59,3 +59,22 @@ bundle-deploy:  ## Upload src/ and transform/ and create or update the job
 
 bundle-run:  ## Run the pipeline job now and follow its progress
 	databricks bundle run lakehouse_pipeline
+
+# ---------------------------------------------------------------- Azure (Terraform)
+# Costs money while it exists: run `make tf-destroy` at the end of every session.
+TF = terraform -chdir=infra
+
+tf-init:  ## Download the Terraform providers (once, and after version changes)
+	$(TF) init
+
+tf-plan:  ## Show what Terraform would create, change or delete; changes nothing
+	$(TF) plan -out=tfplan
+
+tf-apply:  ## Apply exactly the plan you just reviewed
+	$(TF) apply tfplan
+
+tf-destroy:  ## Delete every Azure resource of this project, so costs stop
+	$(TF) destroy
+
+tf-output:  ## Show the workspace URL, storage account and other outputs
+	$(TF) output

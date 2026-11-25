@@ -34,7 +34,7 @@ then the governed AI layer that ties this project to the rest of the portfolio.
 | `feature/03-bronze-ingestion` | `COPY INTO` Bronze Delta tables (all strings + load metadata), reconciled per tenant |
 | `feature/04-dbt-databricks` | Silver (typed, deduplicated) and Gold models ported to `dbt-databricks`, reconciled to Bronze |
 | `feature/05-orchestration` | Databricks Asset Bundle: one job runs Auto Loader ingest, then dbt |
-| `feature/06-azure-infra` | Terraform: resource group, ADLS Gen2, Azure Databricks workspace, budget alert |
+| `feature/06-azure-infra` | Terraform: resource group, ADLS Gen2, access connector, premium workspace, subscription budget |
 | `feature/07-unity-catalog-azure` | Storage credential and external location on your own ADLS |
 | `feature/08-governance` | Grants, per-tenant row filters, lineage |
 | `feature/09-cicd` | GitHub Actions deploys the bundle (OIDC, no stored secrets) |
@@ -117,6 +117,27 @@ Set `BUNDLE_VAR_warehouse_id` in `.env`. The daily 06:00 schedule (London time) 
 created paused. Auto Loader starts with a cutover: it skips files that `COPY INTO`
 already loaded, so nothing is loaded twice. On an empty workspace, run the job once
 with `include_existing_files=true`.
+
+### Azure (Terraform)
+
+`infra/` creates the Azure side: a resource group, an ADLS Gen2 data lake, the
+managed identity Unity Catalog uses to reach it, a premium Azure Databricks
+workspace, and a subscription budget that emails at 50%, 80% and a forecast 100%.
+
+Set `ARM_SUBSCRIPTION_ID` and `TF_VAR_budget_email` in `.env`, sign in with
+`az login`, then:
+
+```bash
+make tf-init      # once: download the providers
+make tf-plan      # review what would change
+make tf-apply     # apply exactly that plan
+make tf-output    # workspace URL, storage account, lakehouse root
+make tf-destroy   # at the end of every session: costs stop
+```
+
+> **Cost:** the workspace's secure cluster connectivity adds a NAT gateway, billed
+> by the hour while the workspace exists. Everything here is reproducible with
+> `make`, so destroy after each session and re-apply next time.
 
 ## Landing-zone contract
 
