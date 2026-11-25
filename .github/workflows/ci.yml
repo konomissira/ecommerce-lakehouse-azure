@@ -23,3 +23,11 @@ jobs:
         run: make check
       - name: dbt project compiles
         run: make dbt-deps dbt-parse
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.13.5
+      - name: Terraform is formatted and valid
+        run: |
+          terraform -chdir=infra fmt -check -recursive
+          terraform -chdir=infra init -backend=false -input=false
+          terraform -chdir=infra validate
