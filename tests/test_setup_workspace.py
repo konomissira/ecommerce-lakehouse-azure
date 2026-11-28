@@ -7,6 +7,7 @@ import pytest
 from lakehouse.landing import EXPECTED_COLUMNS, LandingContractError
 from lakehouse.setup_workspace import (
     SetupError,
+    catalog_exists,
     check_all,
     check_local_file,
     main,
@@ -215,3 +216,37 @@ def test_a_bad_file_stops_before_databricks(tmp_path, capsys):
         write_csv(tmp_path, entity, tenants=("brand_a", "brand_zz"))
     assert main(["--data-dir", str(tmp_path)]) == 1
     assert "Stopped before touching Databricks" in capsys.readouterr().err
+
+
+# ---------- A catalog created elsewhere (Terraform on Azure) ----------
+
+
+def test_an_existing_catalog_is_not_created_again():
+    statements = setup_statements("ecommerce", create_catalog=False)
+    assert not any("CREATE CATALOG" in s for s in statements)
+    assert statements[0].startswith("CREATE SCHEMA IF NOT EXISTS ecommerce.bronze")
+
+
+def shown(*catalogs):
+    return SimpleNamespace(
+        statement_id="s",
+        status=SimpleNamespace(state=SimpleNamespace(value="SUCCEEDED"), error=None),
+        manifest=SimpleNamespace(schema=SimpleNamespace(columns=[SimpleNamespace(name="catalog")])),
+        result=SimpleNamespace(data_array=[[c] for c in catalogs]),
+    )
+
+
+def test_catalog_exists_reads_show_catalogs():
+    client = client_with(shown("ecommerce"))
+    assert catalog_exists(client, "wh", "ecommerce") is True
+    assert client.statement_execution.executed == ["SHOW CATALOGS LIKE 'ecommerce'"]
+
+
+def test_a_missing_or_merely_similar_catalog_does_not_count():
+    assert catalog_exists(client_with(shown()), "wh", "ecommerce") is False
+    assert catalog_exists(client_with(shown("ecommerce_old")), "wh", "ecommerce") is False
+
+
+def test_catalog_exists_refuses_an_unsafe_name():
+    with pytest.raises(SetupError):
+        catalog_exists(client_with(), "wh", "x'; DROP CATALOG main --")

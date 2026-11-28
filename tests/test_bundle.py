@@ -92,3 +92,14 @@ def test_ruff_is_the_same_version_in_pre_commit_and_ci():
     )
     assert pinned and hook, "pin ruff exactly in both files"
     assert pinned.group(1) == hook.group(1)
+
+
+def test_env_azure_files_are_never_committed():
+    ignored = (ROOT / ".gitignore").read_text().splitlines()
+    assert ".env" in ignored and ".env.*" in ignored and "!.env.example" in ignored
+
+
+def test_make_refuses_to_run_against_azure_without_its_settings():
+    makefile = (ROOT / "Makefile").read_text()
+    assert "include .env.$(ENV)" in makefile
+    assert "run `make azure-env` first" in makefile

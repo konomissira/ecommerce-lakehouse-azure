@@ -35,7 +35,7 @@ then the governed AI layer that ties this project to the rest of the portfolio.
 | `feature/04-dbt-databricks` | Silver (typed, deduplicated) and Gold models ported to `dbt-databricks`, reconciled to Bronze |
 | `feature/05-orchestration` | Databricks Asset Bundle: one job runs Auto Loader ingest, then dbt |
 | `feature/06-azure-infra` | Terraform: resource group, ADLS Gen2, access connector, premium workspace, subscription budget |
-| `feature/07-unity-catalog-azure` | Storage credential and external location on your own ADLS |
+| `feature/07-unity-catalog-azure` | Storage credential, external location and the `ecommerce` catalog on our own lake; the pipeline on Azure |
 | `feature/08-governance` | Grants, per-tenant row filters, lineage |
 | `feature/09-cicd` | GitHub Actions deploys the bundle (OIDC, no stored secrets) |
 | `feature/10-governed-questions` | Natural-language questions over Gold: the model picks a vetted question, deterministic code runs parameterised SQL |
@@ -133,6 +133,25 @@ make tf-plan      # review what would change
 make tf-apply     # apply exactly that plan
 make tf-output    # workspace URL, storage account, lakehouse root
 make tf-destroy   # at the end of every session: costs stop
+```
+
+Terraform also creates the Unity Catalog side: a storage credential for the access
+connector's managed identity, an external location on `abfss://lakehouse@<lake>/`,
+and the `ecommerce` catalog with its storage root there, so every table and volume
+lives in our own ADLS Gen2 lake.
+
+### Running the pipeline on Azure
+
+Every `make` command runs against Azure with `ENV=azure`:
+
+```bash
+make tf-plan && make tf-apply   # bring the Azure side up (about 6 minutes)
+make azure-login                # sign the CLI in to the new workspace, as profile `azure`
+make azure-env                  # write .env.azure: workspace URL and warehouse ID
+make workspace ENV=azure        # schemas, volume, contract-checked upload
+make bronze ENV=azure           # COPY INTO Bronze, reconciled per tenant
+make dbt-build ENV=azure        # Silver and Gold, every test
+make tf-destroy                 # end of the session
 ```
 
 > **Cost:** the workspace's secure cluster connectivity adds a NAT gateway, billed
