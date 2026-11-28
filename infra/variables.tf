@@ -35,3 +35,14 @@ variable "budget_email" {
     error_message = "budget_email must be an email address."
   }
 }
+
+variable "catalog" {
+  description = "The Unity Catalog catalog of the lakehouse."
+  type        = string
+  default     = "ecommerce"
+
+  validation {
+    condition     = can(regex("^[a-z][a-z0-9_]{0,62}$", var.catalog))
+    error_message = "catalog must be a lower-case identifier, such as ecommerce."
+  }
+}

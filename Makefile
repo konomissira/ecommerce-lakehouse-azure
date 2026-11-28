@@ -1,7 +1,14 @@
-.PHONY: setup lint format test check data workspace-plan workspace bronze-plan bronze dbt-deps dbt-parse dbt-build bundle-validate bundle-deploy bundle-run tf-init tf-plan tf-apply tf-destroy tf-output
+.PHONY: setup lint format test check data workspace-plan workspace bronze-plan bronze dbt-deps dbt-parse dbt-build bundle-validate bundle-deploy bundle-run tf-init tf-plan tf-apply tf-destroy tf-output azure-login azure-env
 
 # Local settings (not secrets) such as DBT_DATABRICKS_HOST; see .env.example.
+# `make <target> ENV=azure` also loads .env.azure on top, so the same commands
+# run against the Azure workspace instead of Databricks Free Edition.
+ENV ?=
 -include .env
+ifneq ($(ENV),)
+$(if $(wildcard .env.$(ENV)),,$(error .env.$(ENV) is missing: run `make azure-env` first))
+include .env.$(ENV)
+endif
 export
 
 # dbt gets a short-lived OAuth token from your Databricks CLI login, so no
@@ -78,3 +85,9 @@ tf-destroy:  ## Delete every Azure resource of this project, so costs stop
 
 tf-output:  ## Show the workspace URL, storage account and other outputs
 	$(TF) output
+
+azure-login:  ## Sign the Databricks CLI in to the Azure workspace, as profile `azure`
+	databricks auth login --host "$$($(TF) output -raw workspace_url)" --profile azure
+
+azure-env:  ## Write .env.azure from Terraform and the Azure workspace (after every tf-apply)
+	python -m lakehouse.azure_env

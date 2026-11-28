@@ -66,10 +66,12 @@ def check_identifier(name: str) -> str:
     return name
 
 
-def setup_statements(catalog: str) -> list[str]:
+def setup_statements(catalog: str, create_catalog: bool = True) -> list[str]:
+    """The SQL to run. create_catalog=False when the catalog already exists, for
+    example on Azure, where Terraform creates it on our own storage (feature/07)."""
     catalog = check_identifier(catalog)
     statements = []
-    if catalog not in PREEXISTING_CATALOGS:
+    if create_catalog and catalog not in PREEXISTING_CATALOGS:
         statements.append(
             f"CREATE CATALOG IF NOT EXISTS {catalog} COMMENT 'Multi-tenant ecommerce KPI lakehouse'"
         )
@@ -188,6 +190,18 @@ def fetch_rows(response: Any) -> list[dict[str, str | None]]:
     return [dict(zip(names, row, strict=True)) for row in (result.data_array or [])]
 
 
+def catalog_exists(client: Any, warehouse_id: str, catalog: str) -> bool:
+    """True if the catalog is already there.
+
+    Checked first because CREATE CATALOG IF NOT EXISTS is not always a no-op:
+    Databricks decides where a new catalog would be stored before it checks
+    whether the catalog exists, and refuses when no storage is available.
+    """
+    catalog = check_identifier(catalog)
+    rows = fetch_rows(run_sql(client, warehouse_id, f"SHOW CATALOGS LIKE '{catalog}'"))
+    return any(row.get("catalog") == catalog for row in rows)
+
+
 def pick_warehouse(client: Any, warehouse_id: str | None = None) -> str:
     if warehouse_id:
         return warehouse_id
@@ -251,6 +265,9 @@ def main(argv: list[str] | None = None) -> int:
         client = make_client(args.profile)
         warehouse_id = pick_warehouse(client, args.warehouse_id)
         print(f"\nUsing SQL warehouse {warehouse_id}")
+        if catalog_exists(client, warehouse_id, args.catalog):
+            print(f"  catalog {args.catalog} already exists: keeping it as it is")
+            statements = setup_statements(args.catalog, create_catalog=False)
         for statement in statements:
             print(f"  {statement.split(' COMMENT')[0]}")
             run_sql(client, warehouse_id, statement)

@@ -20,3 +20,12 @@ output "access_connector_id" {
   description = "The identity Unity Catalog uses to reach the lake (feature/07)."
   value       = azurerm_databricks_access_connector.unity.id
 }
+
+output "catalog" {
+  value = databricks_catalog.lakehouse.name
+}
+
+output "catalog_storage_root" {
+  description = "Where every table and volume of the catalog is stored: our own lake."
+  value       = databricks_catalog.lakehouse.storage_root
+}

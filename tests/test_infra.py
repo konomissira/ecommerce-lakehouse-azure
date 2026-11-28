@@ -28,7 +28,7 @@ def block(kind: str, name: str) -> str:
 
 
 def test_the_expected_files_exist():
-    assert set(TF) == {"main.tf", "outputs.tf", "variables.tf", "versions.tf"}
+    assert set(TF) == {"main.tf", "outputs.tf", "unity_catalog.tf", "variables.tf", "versions.tf"}
 
 
 @pytest.mark.parametrize("name", sorted(TF))
@@ -98,3 +98,47 @@ def test_ci_checks_the_terraform():
     ci = (INFRA.parent / ".github" / "workflows" / "ci.yml").read_text()
     for step in ("fmt -check", "init -backend=false", "validate"):
         assert step in ci
+
+
+# ---------------------------------------------------------------- Unity Catalog (feature/07)
+
+
+def test_databricks_signs_in_through_az_login_not_a_token():
+    provider = block("provider", "databricks")
+    assert 'auth_type                   = "azure-cli"' in provider
+    assert "token" not in provider
+    assert re.search(r'databricks\s*=\s*\{[^}]*version\s*=\s*"~> 1\.\d+"', TF["versions.tf"])
+
+
+def test_the_credential_uses_the_access_connector_after_rbac_has_propagated():
+    credential = block("resource", "databricks_storage_credential")
+    assert "access_connector_id = azurerm_databricks_access_connector.unity.id" in credential
+    assert "depends_on = [time_sleep.rbac_propagation]" in credential
+    wait = block("resource", "time_sleep")
+    assert "depends_on      = [azurerm_role_assignment.unity_storage]" in wait
+
+
+def test_the_external_location_is_our_lake_through_that_credential():
+    location = block("resource", "databricks_external_location")
+    assert "url             = local.lake_root" in location
+    assert "credential_name = databricks_storage_credential.lake.name" in location
+    assert ".dfs.core.windows.net/" in ALL, "ADLS Gen2 endpoint, abfss://"
+
+
+def test_the_catalog_is_stored_in_our_lake():
+    catalog = block("resource", "databricks_catalog")
+    assert "name          = var.catalog" in catalog
+    assert 'storage_root  = "${databricks_external_location.lake.url}${var.catalog}"' in catalog
+
+
+def test_dev_objects_can_be_destroyed_with_the_workspace():
+    for kind in (
+        "databricks_storage_credential",
+        "databricks_external_location",
+        "databricks_catalog",
+    ):
+        assert "force_destroy" in block("resource", kind), kind
+
+
+def test_the_catalog_name_matches_the_rest_of_the_project():
+    assert 'default     = "ecommerce"' in block("variable", "catalog")
